@@ -66,40 +66,74 @@ import org.knime.workbench.editor2.editparts.AnnotationEditPart;
  */
 public class WorkflowAnnotationFigure extends NodeAnnotationFigure {
 
-    private final Label m_editIcon;
+    private final Label m_modeIcon;
+    private final Label m_moveIcon;
 
     private static final Image MOVE_ICON = ImageRepository.getImage(SharedImages.AnnotationMoveHover);
+    private static final Image SWITCH_MODE_ICON = ImageRepository.getImage(SharedImages.AnnotationEditModeHover);
 
+    /**
+     * @param anno the annotation which serves as the model backing this figure
+     */
     public WorkflowAnnotationFigure(final Annotation anno) {
         super(anno);
         ImageData d = MOVE_ICON.getImageData();
-        m_editIcon = new Label(MOVE_ICON);
-        m_editIcon.setBounds(new Rectangle(0, 0, d.width, d.height));
-        m_editIcon.setVisible(false); // visible only when mouse enters
-        add(m_editIcon);
+        m_moveIcon = new Label(MOVE_ICON);
+        m_moveIcon.setBounds(new Rectangle(0, 0, d.width, d.height));
+        m_moveIcon.setVisible(false); // visible only when mouse enters
+        add(m_moveIcon);
+
+        d = SWITCH_MODE_ICON.getImageData();
+        m_modeIcon = new Label(SWITCH_MODE_ICON);
+        m_modeIcon.setBounds(new Rectangle(0, 0, d.width, d.height));
+        m_modeIcon.setVisible(false); // visible only when mouse enters
+        add(m_modeIcon);
     }
 
-    public void showEditIcon(final boolean showit) {
-        m_editIcon.setVisible(showit);
+    /**
+     * @param flag if true, set the edit mode icon visible and hide if false
+     */
+    public void showEditIcon(final boolean flag) {
+        m_modeIcon.setVisible(flag);
     }
 
+    /**
+     * @return the bounds of the edit mode icon label
+     */
     public Rectangle getEditIconBounds() {
-        return m_editIcon.getBounds();
+        return m_modeIcon.getBounds();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void newContent(final Annotation annotation) {
         super.newContent(annotation);
 
-        AnnotationData data = annotation.getData();
+        final boolean renderEnabled = determineRenderEnabledState(annotation);
+        final AnnotationData data = annotation.getData();
 
         Color bg = AnnotationEditPart.RGBintToColor(data.getBgColor());
+        if (!renderEnabled) {
+            bg = AnnotationEditPart.convertToGrayscale(bg);
+        }
         setBackgroundColor(bg);
         m_page.setBackgroundColor(bg);
+
+        Color fg = AnnotationEditPart.getAnnotationDefaultForegroundColor();
+        if (!renderEnabled) {
+            fg = AnnotationEditPart.convertToGrayscale(fg);
+        }
+        setForegroundColor(fg);
+        m_page.setForegroundColor(fg);
 
         // set border with specified annotation color
         if (data.getBorderSize() > 0) {
             Color col = AnnotationEditPart.RGBintToColor(data.getBorderColor());
+            if (!renderEnabled) {
+                col = AnnotationEditPart.convertToGrayscale(col);
+            }
             m_page.setBorder(new LineBorder(col, data.getBorderSize()));
         } else {
             m_page.setBorder(null);
