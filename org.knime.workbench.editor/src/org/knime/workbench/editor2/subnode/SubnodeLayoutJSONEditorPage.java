@@ -106,6 +106,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Spinner;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
@@ -243,7 +244,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         composite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         final Composite buttonComposite = new Composite(composite, SWT.NONE);
-        buttonComposite.setLayout(new GridLayout(3, true));
+        buttonComposite.setLayout(new GridLayout(4, true));
         buttonComposite.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
 
         final GridData d = new GridData(SWT.FILL, SWT.TOP, true, false);
@@ -258,6 +259,19 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         final Button clearButton = new Button(buttonComposite, SWT.PUSH);
         clearButton.setText("Clear");
         clearButton.setLayoutData(d);
+
+        final Button resizeButton = new Button(buttonComposite, SWT.PUSH);
+        resizeButton.setText("Resize");
+        resizeButton.setLayoutData(d);
+        resizeButton.addSelectionListener(new SelectionAdapter() {
+
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                final Shell s = Display.getCurrent().getActiveShell();
+                final boolean fullScreen = s.getFullScreen();
+                s.setFullScreen(!fullScreen);
+            }
+        });
 
         if (!tempDirExists()) {
             File td = null;
@@ -299,6 +313,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
             LOGGER.error("Cannot write JSON: " + e.getMessage(), e);
         }
 
+        final String JSONLayout = getJsonDocument();
         return composite;
     }
 
