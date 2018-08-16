@@ -85,6 +85,8 @@ import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.browser.Browser;
+import org.eclipse.swt.browser.ProgressEvent;
+import org.eclipse.swt.browser.ProgressListener;
 import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
@@ -164,6 +166,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
 
     private File m_tempDir;
     private final static String EMPTY_JSON = "{}";
+    private Browser m_browser;
 
     /**
      * Crates a new page instance with a given page name
@@ -267,14 +270,14 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         }
 
         // Create browser
-        final Browser browse = new Browser(composite, SWT.FILL);
+        m_browser = new Browser(composite, SWT.FILL);
         try {
             final String location = m_tempDir.getAbsolutePath() + "/layoutEditor/index.html";
-            browse.setUrl(new File(location).toURI().toURL().toString());
+            m_browser.setUrl(new File(location).toURI().toURL().toString());
         } catch (MalformedURLException e) {
             LOGGER.error(e.getMessage(), e);
         }
-        browse.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        m_browser.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         // Create buttons
         final Composite buttonComposite = new Composite(composite, SWT.NONE);
@@ -300,14 +303,44 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         final Button clearButton = new Button(buttonComposite, SWT.PUSH);
         clearButton.setText("Clear");
         clearButton.setLayoutData(d);
+        clearButton.addSelectionListener(new SelectionAdapter() {
+
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                // TODO
+                // Call load method in Javascript with empty layout JSON
+                m_browser.evaluate("loadLayout({ });");
+            }
+        });
 
         final Button resetButton = new Button(buttonComposite, SWT.PUSH);
         resetButton.setText("Reset");
         resetButton.setLayoutData(d);
+        resetButton.addSelectionListener(new SelectionAdapter() {
+
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                // TODO
+                // Call load with current JSON layout
+                m_browser.evaluate("loadLayout(\'" + getJsonDocument() + "\');");
+            }
+        });
 
         final Button applyButton = new Button(buttonComposite, SWT.PUSH);
         applyButton.setText("Apply");
         applyButton.setLayoutData(d);
+        applyButton.addSelectionListener(new SelectionAdapter() {
+
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                // TODO
+                // Call Javascript method to get current layout JSON
+                final String layout = "{ }";
+                updateJsonDocument(layout);
+                updateJsonTextArea();
+                updateModelFromJson();
+            }
+        });
 
         // Create JSON Objects
         final JSONVisualLayoutEditorNodes nodes =
@@ -320,7 +353,25 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
             LOGGER.error("Cannot write JSON: " + e.getMessage(), e);
         }
         final String JSONLayout = getJsonDocument();
+        final String jsonNodes =
+            new StringBuilder(JSONNodes).insert(JSONNodes.length() - 2, ", length:" + nodes.getLength()).toString();
+        m_browser.addProgressListener(new ProgressListener() {
 
+            @Override
+            public void changed(final ProgressEvent event) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void completed(final ProgressEvent event) {
+                // TODO Auto-generated method stub
+                m_browser.evaluate("loadNodes(" + jsonNodes + ");");
+                System.out.println("Layout: \n" + JSONLayout);
+                m_browser.evaluate("loadLayout(\'" + JSONLayout + "\');");
+            }
+
+        });
         return composite;
     }
 
@@ -557,11 +608,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
                     return;
                 }
                 resetLayout();
-                if (isWindows()) {
-                    m_textArea.setText(m_jsonDocument);
-                } else {
-                    m_text.setText(m_jsonDocument);
-                }
+                updateJsonTextArea();
                 updateModelFromJson();
             }
         });
@@ -769,17 +816,27 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         m_wfManager = manager;
         m_subNodeContainer = subnodeContainer;
         m_viewNodes = viewNodes;
-        JSONLayoutPage page = null;
         String layout = m_subNodeContainer.getLayoutJSONString();
         if (layout == null || layout.isEmpty() || layout.equals(EMPTY_JSON)) {
             m_jsonDocument = EMPTY_JSON;
             return;
         }
+        JSONLayoutPage page = updateJsonDocument(layout);
+        List<JSONLayoutRow> rows = page.getRows();
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            JSONLayoutRow row = rows.get(rowIndex);
+            populateDocumentNodeIDs(row);
+            processBasicLayoutRow(row, rowIndex);
+        }
+    }
+
+    private JSONLayoutPage updateJsonDocument(final String layout) {
+        JSONLayoutPage page = null;
         try {
             ObjectMapper mapper = JSONLayoutPage.getConfiguredObjectMapper();
             page = mapper.readValue(layout, JSONLayoutPage.class);
             if (page.getRows() == null) {
-                page = null;
+                m_jsonDocument = EMPTY_JSON;
             } else {
                 m_jsonDocument = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(page);
             }
@@ -787,15 +844,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
             LOGGER.error("Error parsing layout. Pretty printing not possible: " + e.getMessage(), e);
             m_jsonDocument = layout;
         }
-        if (page == null) {
-            page = resetLayout();
-        }
-        List<JSONLayoutRow> rows = page.getRows();
-        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
-            JSONLayoutRow row = rows.get(rowIndex);
-            populateDocumentNodeIDs(row);
-            processBasicLayoutRow(row, rowIndex);
-        }
+        return page;
     }
 
     /**
@@ -850,6 +899,9 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         m_basicMap.clear();
         m_basicPanelAvailable = true;
         List<JSONLayoutRow> rows = page.getRows();
+        if (rows == null) {
+            return;
+        }
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             JSONLayoutRow row = rows.get(rowIndex);
             populateDocumentNodeIDs(row);
@@ -915,6 +967,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
     private void tryUpdateJsonFromBasic() {
         try {
             basicLayoutToJson();
+            updateVisualLayout();
         } catch (Exception e) {
             //TODO show error in dialog?, this should not happen
             LOGGER.error(e.getMessage(), e);
@@ -949,11 +1002,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         ObjectMapper mapper = JSONLayoutPage.getConfiguredObjectMapper();
         String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(page);
         m_jsonDocument = json;
-        if (isWindows()) {
-            m_textArea.setText(m_jsonDocument);
-        } else {
-            m_text.setText(m_jsonDocument);
-        }
+        updateJsonTextArea();
     }
 
     private void compareNodeIDs() {
@@ -1017,6 +1066,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
     private void updateModelFromJson() {
         if (isJSONValid()) {
             updateBasicLayout();
+            updateVisualLayout();
         } else {
             m_basicPanelAvailable = false;
         }
@@ -1025,6 +1075,11 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         }
         fillBasicComposite();
         m_basicComposite.layout(true);
+    }
+
+    private void updateVisualLayout() {
+        m_browser.evaluate("loadLayout(\'" + getJsonDocument() + "\');");
+        // TODO call javascript load method
     }
 
     /**
@@ -1103,6 +1158,14 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
 
     private boolean isWindows() {
         return Platform.OS_WIN32.equals(Platform.getOS());
+    }
+
+    private void updateJsonTextArea() {
+        if (isWindows()) {
+            m_textArea.setText(m_jsonDocument);
+        } else {
+            m_text.setText(m_jsonDocument);
+        }
     }
 
     private static class BasicLayoutInfo {

@@ -66,6 +66,7 @@ import org.knime.js.core.layout.LayoutTemplateProvider;
 import org.knime.js.core.layout.bs.JSONLayoutViewContent;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * A JSON representation of the nodes for the visual layout editor.
@@ -131,6 +132,7 @@ public class JSONVisualLayoutEditorNodes {
      *
      * @return the length
      */
+    @JsonIgnore
     public long getLength() {
         return m_length;
     }
@@ -138,6 +140,7 @@ public class JSONVisualLayoutEditorNodes {
     /**
      * @param length the length to set
      */
+    @JsonIgnore
     public void setLength(final long length) {
         m_length = length;
     }
