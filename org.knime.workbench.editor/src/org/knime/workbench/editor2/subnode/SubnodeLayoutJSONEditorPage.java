@@ -244,36 +244,7 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         composite.setLayout(new GridLayout(1, false));
         composite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-        final Composite buttonComposite = new Composite(composite, SWT.NONE);
-        buttonComposite.setLayout(new GridLayout(4, true));
-        buttonComposite.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
-
-        final GridData d = new GridData(SWT.FILL, SWT.TOP, true, false);
-        final Button applyButton = new Button(buttonComposite, SWT.PUSH);
-        applyButton.setText("Apply");
-        applyButton.setLayoutData(d);
-
-        final Button resetButton = new Button(buttonComposite, SWT.PUSH);
-        resetButton.setText("Reset");
-        resetButton.setLayoutData(d);
-
-        final Button clearButton = new Button(buttonComposite, SWT.PUSH);
-        clearButton.setText("Clear");
-        clearButton.setLayoutData(d);
-
-        final Button resizeButton = new Button(buttonComposite, SWT.PUSH);
-        resizeButton.setText("Resize");
-        resizeButton.setLayoutData(d);
-        resizeButton.addSelectionListener(new SelectionAdapter() {
-
-            @Override
-            public void widgetSelected(final SelectionEvent e) {
-                final Shell s = Display.getCurrent().getActiveShell();
-                final boolean fullScreen = s.getFullScreen();
-                s.setFullScreen(!fullScreen);
-            }
-        });
-
+        // Create temporary directory if necessary
         if (!tempDirExists()) {
             File td = null;
             try {
@@ -294,6 +265,8 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         } catch (IOException ex) {
             LOGGER.error("Cannot copy files to temp directory" + ex.getMessage(), ex);
         }
+
+        // Create browser
         final Browser browse = new Browser(composite, SWT.FILL);
         try {
             final String location = m_tempDir.getAbsolutePath() + "/layoutEditor/index.html";
@@ -302,6 +275,39 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
             LOGGER.error(e.getMessage(), e);
         }
         browse.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        // Create buttons
+        final Composite buttonComposite = new Composite(composite, SWT.NONE);
+        buttonComposite.setLayout(new GridLayout(4, true));
+        buttonComposite.setLayoutData(new GridData(SWT.RIGHT, SWT.BOTTOM, true, false));
+
+        final GridData d = new GridData(SWT.RIGHT, SWT.BOTTOM, false, false);
+        d.widthHint = 110;
+
+        final Button resizeButton = new Button(buttonComposite, SWT.PUSH);
+        resizeButton.setText("Resize");
+        resizeButton.setLayoutData(d);
+        resizeButton.addSelectionListener(new SelectionAdapter() {
+
+            @Override
+            public void widgetSelected(final SelectionEvent e) {
+                final Shell s = Display.getCurrent().getActiveShell();
+                final boolean fullScreen = s.getFullScreen();
+                s.setFullScreen(!fullScreen);
+            }
+        });
+
+        final Button clearButton = new Button(buttonComposite, SWT.PUSH);
+        clearButton.setText("Clear");
+        clearButton.setLayoutData(d);
+
+        final Button resetButton = new Button(buttonComposite, SWT.PUSH);
+        resetButton.setText("Reset");
+        resetButton.setLayoutData(d);
+
+        final Button applyButton = new Button(buttonComposite, SWT.PUSH);
+        applyButton.setText("Apply");
+        applyButton.setLayoutData(d);
 
         // Create JSON Objects
         final JSONVisualLayoutEditorNodes nodes =
@@ -313,8 +319,8 @@ public class SubnodeLayoutJSONEditorPage extends WizardPage {
         } catch (JsonProcessingException e) {
             LOGGER.error("Cannot write JSON: " + e.getMessage(), e);
         }
-
         final String JSONLayout = getJsonDocument();
+
         return composite;
     }
 
