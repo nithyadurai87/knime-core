@@ -2500,7 +2500,7 @@ public class WorkflowEditor extends GraphicalEditor implements
         if (preNode == null) {
             nodeLoc = getViewportCenterLocation();
             // this command accepts/requires relative coordinates
-            newNodeCmd = new CreateNodeCommand(unwrapWFM(m_manager), nodeFactory, nodeLoc, getEditorSnapToGrid());
+            newNodeCmd = new CreateNodeCommand(m_manager, nodeFactory, nodeLoc, getEditorSnapToGrid());
         } else {
             nodeLoc = getLocationRightOf(preNode);
             newNodeCmd =

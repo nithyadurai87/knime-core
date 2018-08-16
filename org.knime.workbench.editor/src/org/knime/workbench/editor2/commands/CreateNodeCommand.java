@@ -47,6 +47,8 @@
  */
 package org.knime.workbench.editor2.commands;
 
+import static org.knime.core.ui.wrapper.Wrapper.wraps;
+
 import org.eclipse.draw2d.geometry.Point;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
@@ -58,8 +60,12 @@ import org.knime.core.node.workflow.NodeContainer;
 import org.knime.core.node.workflow.NodeID;
 import org.knime.core.node.workflow.NodeTimer;
 import org.knime.core.node.workflow.NodeUIInformation;
-import org.knime.core.node.workflow.WorkflowManager;
+import org.knime.core.ui.node.workflow.NodeContainerUI;
+import org.knime.core.ui.node.workflow.WorkflowManagerUI;
+import org.knime.core.ui.node.workflow.async.OperationNotAllowedException;
+import org.knime.core.ui.wrapper.Wrapper;
 import org.knime.core.util.SWTUtilities;
+import org.knime.workbench.ui.async.AsyncSwitch;
 
 /**
  * GEF command for adding a <code>Node</code> to the
@@ -89,7 +95,7 @@ public class CreateNodeCommand extends AbstractKNIMECommand {
      * Container of the new node.
      * @since 2.12
      */
-    protected NodeContainer m_container;
+    protected NodeContainerUI m_container;
 
     /**
      * Creates a new command.
@@ -99,7 +105,7 @@ public class CreateNodeCommand extends AbstractKNIMECommand {
      * @param location Initial visual location in the
      * @param snapToGrid snap new node to grid
      */
-    public CreateNodeCommand(final WorkflowManager manager,
+    public CreateNodeCommand(final WorkflowManagerUI manager,
             final NodeFactory<? extends NodeModel> factory, final Point location, final boolean snapToGrid) {
         super(manager);
         m_factory = factory;
@@ -117,12 +123,18 @@ public class CreateNodeCommand extends AbstractKNIMECommand {
     /** {@inheritDoc} */
     @Override
     public void execute() {
-        WorkflowManager hostWFM = getHostWFM();
+        WorkflowManagerUI hostWFM = getHostWFMUI();
         // Add node to workflow and get the container
         try {
-            NodeID id = hostWFM.createAndAddNode(m_factory);
+            NodeID id = AsyncSwitch.wfmAsyncSwitch(wfm -> {
+                return wfm.createAndAddNode(m_factory);
+            }, wfm -> {
+                return wfm.createAndAddNodeAsync(m_factory);
+            }, hostWFM, "Adding new node ...");
             m_container = hostWFM.getNodeContainer(id);
-            NodeTimer.GLOBAL_TIMER.addNodeCreation(m_container);
+            if (wraps(m_container, NodeContainer.class)) {
+                NodeTimer.GLOBAL_TIMER.addNodeCreation(Wrapper.unwrapNC(m_container));
+            }
         } catch (Throwable t) {
             // if fails notify the user
             LOGGER.debug("Node cannot be created.", t);
@@ -147,7 +159,7 @@ public class CreateNodeCommand extends AbstractKNIMECommand {
     @Override
     public boolean canUndo() {
         return m_container != null
-            && getHostWFM().canRemoveNode(m_container.getID());
+            && getHostWFMUI().canRemoveNode(m_container.getID());
     }
 
     /**
@@ -157,7 +169,17 @@ public class CreateNodeCommand extends AbstractKNIMECommand {
     public void undo() {
         LOGGER.debug("Undo: Removing node #" + m_container.getID());
         if (canUndo()) {
-            getHostWFM().removeNode(m_container.getID());
+            getHostWFMUI().remove(new NodeID[]{m_container.getID()}, null, null);
+            try {
+                AsyncSwitch.wfmAsyncSwitchRethrow(wfm -> {
+                    wfm.remove(new NodeID[]{m_container.getID()}, null, null);
+                    return null;
+                }, wfm -> {
+                    return wfm.removeAsync(new NodeID[]{m_container.getID()}, null, null);
+                }, getHostWFMUI(), "Removing node ...");
+            } catch (OperationNotAllowedException e) {
+                //should never happen
+            }
         } else {
             MessageDialog.openInformation(SWTUtilities.getActiveShell(),
                     "Operation no allowed", "The node "
@@ -165,5 +187,4 @@ public class CreateNodeCommand extends AbstractKNIMECommand {
                     + " can currently not be removed");
         }
     }
-
 }

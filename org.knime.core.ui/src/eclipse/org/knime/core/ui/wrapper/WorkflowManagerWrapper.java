@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeFactory;
 import org.knime.core.node.dialog.ExternalNodeData;
 import org.knime.core.node.port.MetaPortInfo;
 import org.knime.core.node.workflow.ConnectionContainer;
@@ -113,6 +114,11 @@ public final class WorkflowManagerWrapper extends NodeContainerWrapper<WorkflowM
     @Override
     public void removeProject(final NodeID id) {
         unwrap().removeProject(id);
+    }
+
+    @Override
+    public NodeID createAndAddNode(final NodeFactory<?> factory) {
+        return unwrap().createAndAddNode(factory);
     }
 
     @Override

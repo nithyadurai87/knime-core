@@ -54,6 +54,7 @@ import org.eclipse.gef.RootEditPart;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.workflow.WorkflowManager;
+import org.knime.core.ui.wrapper.WorkflowManagerWrapper;
 import org.knime.core.ui.wrapper.Wrapper;
 import org.knime.workbench.editor2.editparts.NodeContainerEditPart;
 
@@ -80,7 +81,7 @@ public class ReplaceNodeCommand extends CreateNodeCommand {
      */
     public ReplaceNodeCommand(final WorkflowManager manager, final NodeFactory<? extends NodeModel> factory,
         final Point location, final boolean snapToGrid, final NodeContainerEditPart nodeToReplace) {
-        super(manager, factory, location, snapToGrid);
+        super(WorkflowManagerWrapper.wrap(manager), factory, location, snapToGrid);
         m_node = nodeToReplace;
         m_root = nodeToReplace.getRoot();
         m_rh = new ReplaceHelper(manager, Wrapper.unwrapNC(m_node.getNodeContainer()));
@@ -104,7 +105,7 @@ public class ReplaceNodeCommand extends CreateNodeCommand {
     public void execute() {
         m_delete.execute();
         super.execute();
-        m_rh.reconnect(m_container);
+        m_rh.reconnect(Wrapper.unwrapNC(m_container));
         // the connections are not always properly re-drawn after "unmark". (Eclipse bug.) Repaint here.
         m_root.refresh();
 
